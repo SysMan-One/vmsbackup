@@ -1,6 +1,6 @@
 /* This is the version of main() for POSIX.2 (getopt) style arguments.  */
 
-char *version = "VMSBACKUP4.2";
+char *version = "VMSBACKUP4.3";
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,9 +11,7 @@ char *version = "VMSBACKUP4.2";
 #include "descrip.h"
 #endif
 
-void
-usage (progname)
-char *progname;
+void	usage	(char *progname)
 {
 	fprintf (stderr, "Usage:  %s -{tx}[cdevwF][-b blocksize][-s setnumber][-f tapefile]\n",
 		 progname);
@@ -61,15 +59,12 @@ static const struct option OptionListLong[] =
 };
 #endif
 
-int
-main (argc, argv)
-int argc;
-char *argv[];
+int	main	(int argc, char *argv[])
 {
-	char *progname;
-	int c;
+char *progname;
+int c;
 #ifdef HAVE_GETOPTLONG
-	int OptionIndex;
+int OptionIndex;
 #endif
 
 	progname = argv[0];
@@ -159,9 +154,11 @@ char *argv[];
 		usage(progname);
 		exit(1);
 	}
+
+
 	vmsbackup ();
 }
-
+
 /* The following is code for non-VMS systems which isn't related to main()
    or option parsing.  It should perhaps be part of a separate file
    (depending, of course, on things like whether anyone ever feels like
@@ -178,23 +175,24 @@ time_vms_to_asc (asclength, ascbuffer, srctime)
     char *ascbuffer;
     void *srctime;
 {
-    struct dsc$descriptor buffer;
+struct dsc$descriptor buffer;
 
-    buffer.dsc$w_length = 23;
-    buffer.dsc$b_dtype = DSC$K_DTYPE_T;
-    buffer.dsc$b_class = DSC$K_CLASS_S;
-    buffer.dsc$a_pointer = ascbuffer;
-    return sys$asctim (asclength, &buffer, srctime, 0);
+	buffer.dsc$w_length = 23;
+	buffer.dsc$b_dtype = DSC$K_DTYPE_T;
+	buffer.dsc$b_class = DSC$K_CLASS_S;
+	buffer.dsc$a_pointer = ascbuffer;
+
+	return sys$asctim (asclength, &buffer, srctime, 0);
 }
 #else
-int
-time_vms_to_asc (asclength, ascbuffer, srctime)
-    short *asclength;
-    char *ascbuffer;
-    void *srctime;
+int	time_vms_to_asc (
+		short *	asclength,
+		char *	ascbuffer,
+		void	*srctime
+			)
 {
-    *asclength = 0;
-    return 1;
+	*asclength = '\0';
+	return 1;
 }
 #endif
 

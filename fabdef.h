@@ -183,6 +183,13 @@
 #define FAB$K_BLN	80	/* length of fab */
 #define FAB$C_BLN	80
 
+
+
+#pragma	pack	(push)
+#pragma	pack	(1)
+
+
+
 struct FAB {
     unsigned char  fab$b_bid;	/* block id */
     unsigned char  fab$b_bln;	/* block len */
@@ -376,6 +383,12 @@ struct fabdef {
     } fab$r_rcf_overlay;
     unsigned	: 32;			/* long fill; (spare) */
 };
+
+
+
+#pragma	pack	(pop)
+
+
 
 /* declare initialized prototype data structure */
 extern struct FAB cc$rms_fab __asm("_$$PsectAttributes_GLOBALSYMBOL$$cc$rms_fab");
