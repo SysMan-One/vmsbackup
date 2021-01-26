@@ -576,7 +576,8 @@ ITM	*itm;
 
 				lnch = __cvt_uw (pdata + 12);
 				/* byte 14 unaccounted for */
-				if ( !(vfcsize = pdata + 15) )
+				vfcsize = *(pdata + 15);
+				if (vfcsize == 0)
 					vfcsize = 2;
 
 				/* bytes 16-31 unaccounted for */
