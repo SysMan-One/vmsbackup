@@ -92,6 +92,19 @@
 int mkdir ();
 #endif
 
+/* When the -c flag is used, choose an appropriate separator char
+   for the platform. */
+#ifdef _WIN32
+/* Windows uses a trailing colon (and text) to mean an alternate
+   data stream for the file, which is awkward to use in practice
+   and leads to trouble in the long run as Explorer does not
+   provide meaningful tools to deal with these. The VMS default
+   of semicolon works just fine. */
+#define VERSION_SEPARATOR_CHAR ';'
+#else
+#define VERSION_SEPARATOR_CHAR ':'
+#endif
+
 #include	"vmsbackup.h"
 #include	"sysdep.h"
 
@@ -318,7 +331,7 @@ int	procf = 1;
 	for (; *q && *q != ';'; q++)
 		if( *q == '.') ext = q;
 
-	*q = (cflag) ?  ':' : '\0';
+	*q = (cflag) ? VERSION_SEPARATOR_CHAR : '\0';
 
 	if (procf && wflag)
 		{
