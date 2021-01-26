@@ -57,6 +57,7 @@
 #include	<unixio.h>
 #else
 #ifdef _WIN32
+#include	<direct.h>
 #include	<io.h>
 #else
 #include	<unistd.h>
@@ -295,7 +296,12 @@ int	procf = 1;
 			s = *q;
 			*q = '\0';
 
-			if(procf && dflag) mkdir(p, 0777);
+			if (procf && dflag)
+#ifndef _WIN32
+				mkdir(p, 0777);
+#else
+				mkdir(p);
+#endif
 
 			*q = '/';
 
