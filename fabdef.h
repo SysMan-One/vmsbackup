@@ -389,9 +389,10 @@ struct fabdef {
 #pragma	pack	(pop)
 
 
-
+#ifndef _WIN32
 /* declare initialized prototype data structure */
 extern struct FAB cc$rms_fab __asm("_$$PsectAttributes_GLOBALSYMBOL$$cc$rms_fab");
 /* globalref struct FAB cc$rms_fab; */
+#endif
 
 #endif	/*_FABDEF_H*/

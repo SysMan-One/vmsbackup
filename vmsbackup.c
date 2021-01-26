@@ -30,6 +30,7 @@
  *
  *  Modification history:
  *
+ *	26-JAN-2021 CAW Build on Windows with CMake
  *	29-SEP-2016	RRL	Some changes related structure aligment ...
  *	20-SEP-2016	RRL	Some code cleaning and reformating;
  *				added a logic to recovery broken backup blocks by rescanning Backup Block Header, The,
@@ -37,18 +38,31 @@
  *
  */
 
+/* MSVC uses _DEBUG */
+#ifdef _DEBUG
+#define DEBUG 1
+#endif
+
 /* Does this system have the magnetic tape ioctls?  The answer is yes for
    most/all unices, and I think it is yes for VMS 7.x with DECC 5.2 (needs
    verification), but it is no for VMS 6.2.  */
+#ifndef _WIN32
 #ifndef HAVE_MT_IOCTLS
 #define HAVE_MT_IOCTLS 1
+#endif
 #endif
 
 #ifdef HAVE_UNIXIO_H
 /* Declarations for read, write, etc.  */
 #include	<unixio.h>
 #else
+#ifdef _WIN32
+#include	<direct.h>
+#include	<io.h>
+#else
 #include	<unistd.h>
+#include	<sys/file.h>
+#endif
 #include	<fcntl.h>
 #endif
 
@@ -67,16 +81,28 @@
 #include	<local/rmt.h>
 #include	<sys/stat.h>
 #endif
-#include	<sys/file.h>
 
 #include	"fabdef.h"
 
-#ifndef __vax
+#if !defined(__vax) && !defined(_WIN32)
 /* The help claims that mkdir is declared in stdlib.h but it doesn't
    seem to be true.  AXP/VMS 6.2, DECC ?.?.  On the other hand, VAX/VMS 6.2
    seems to declare it in a way which conflicts with this definition.
    This is starting to sound like a bad dream.  */
 int mkdir ();
+#endif
+
+/* When the -c flag is used, choose an appropriate separator char
+   for the platform. */
+#ifdef _WIN32
+/* Windows uses a trailing colon (and text) to mean an alternate
+   data stream for the file, which is awkward to use in practice
+   and leads to trouble in the long run as Explorer does not
+   provide meaningful tools to deal with these. The VMS default
+   of semicolon works just fine. */
+#define VERSION_SEPARATOR_CHAR ';'
+#else
+#define VERSION_SEPARATOR_CHAR ':'
 #endif
 
 #include	"vmsbackup.h"
@@ -283,7 +309,12 @@ int	procf = 1;
 			s = *q;
 			*q = '\0';
 
-			if(procf && dflag) mkdir(p, 0777);
+			if (procf && dflag)
+#ifndef _WIN32
+				mkdir(p, 0777);
+#else
+				mkdir(p);
+#endif
 
 			*q = '/';
 
@@ -300,7 +331,7 @@ int	procf = 1;
 	for (; *q && *q != ';'; q++)
 		if( *q == '.') ext = q;
 
-	*q = (cflag) ?  ':' : '\0';
+	*q = (cflag) ? VERSION_SEPARATOR_CHAR : '\0';
 
 	if (procf && wflag)
 		{
@@ -312,7 +343,7 @@ int	procf = 1;
 
 	/* open the file for writing */
 	if (procf)
-		return	fopen(p, "w");
+		return	fopen(p, "wb");
 
 	return	NULL;
 }
@@ -325,7 +356,7 @@ void	process_summary (
 size_t	c;
 unsigned char	*text;
 unsigned short grp = 0377, usr = 0377, itmcode, itmlen;
-unsigned id, blksz = 0, grpsz = 0, bufcnt = 0;
+unsigned id = 0, blksz = 0, grpsz = 0, bufcnt = 0;
 ITM *itm;
 
 	if (!tflag)
@@ -341,7 +372,7 @@ ITM *itm;
 	bufp += 2;
 
 	for ( itm = (ITM *) bufp, c = 2; c < buflen; c += itmlen + 4,
-			itm = (ITM *) (((void *) itm) + (itmlen + 4)))
+			itm = (ITM *) (((char *) itm) + (itmlen + 4)))
 		{
 		itmlen	= __cvt_uw (&itm->w_size);
 		itmcode	= __cvt_uw (&itm->w_type);
@@ -493,7 +524,7 @@ ITM	*itm;
 	bufp += 2;
 
 	for ( itm = (ITM *) bufp, c = 2; c < buflen; c += itmlen + 4,
-			itm = (ITM *) (((void *) itm) + (itmlen + 4)))
+			itm = (ITM *) (((char *) itm) + (itmlen + 4)))
 		{
 		itmlen	= __cvt_uw (&itm->w_size);
 		itmcode	= __cvt_uw (&itm->w_type);
@@ -501,7 +532,7 @@ ITM	*itm;
 		pdata	= itm->t_text;
 
 #ifdef DEBUG
-		debug_dump(data, dsize, dtype);
+ 		debug_dump(pdata, itmlen, itmcode);
 #endif
 
 		/* Probably should define constants for the cases in this
@@ -564,7 +595,8 @@ ITM	*itm;
 
 				lnch = __cvt_uw (pdata + 12);
 				/* byte 14 unaccounted for */
-				if ( !(vfcsize = pdata + 15) )
+				vfcsize = *(pdata + 15);
+				if (vfcsize == 0)
 					vfcsize = 2;
 
 				/* bytes 16-31 unaccounted for */
@@ -952,7 +984,7 @@ BCK_BLK_HDR *	bbh = (BCK_BLK_HDR *) bufp;
 #ifdef	DEBUG
 		if (debugflag)
 			fprintf(stderr, "[0x%08X] Backup block: header length = %d, size = %d, type (DATA=1/XOR=2) = %5d\n",
-				lseek (fd, 0, SEEK_CUR) - BBH$K_SZ, bhsize, bsize, bbh->w_applic);
+				lseek (input_fd, 0, SEEK_CUR) - BBH$K_SZ, bhsize, bsize, bbh->w_applic);
 #endif
 
 		status = 0;
@@ -1030,7 +1062,7 @@ BCK_REC_HDR *	brh;
 #ifdef	DEBUG
 	if (debugflag)
 		printf("[0x%08X] Backup block: header length = %d, size = %d, type (DATA=1/XOR=2) = %5d, csum = %x04\n",
-			lseek (fd, 0, SEEK_CUR), bhsize, bsize, bbh->w_applic, bbh->w_checksum);
+			lseek (input_fd, 0, SEEK_CUR), bhsize, bsize, bbh->w_applic, bbh->w_checksum);
 #endif
 
 
@@ -1048,7 +1080,7 @@ BCK_REC_HDR *	brh;
 #ifdef	DEBUG
 		if (debugflag)
 			printf("+%06d: Record: type = 0x%x, size = %-5d, flags = 0x%x, addr = 0x%08x\n",
-				i, rtype, rsize, getu32 (brh->l_flags), getu32 (brh->l_address));
+				i, rtype, rsize, brh->l_flags, brh->l_address);
 #endif
 
 		bufp += sizeof(BCK_REC_HDR);
@@ -1226,11 +1258,18 @@ int	i, eoffl;
    a tape.  */
 int ondisk;
 
+/* Read-only plus binary if on Windows */
+int openflag = O_RDONLY;
+
+#ifdef _WIN32
+    openflag |= O_BINARY;
+#endif
+
 	if (tapefile == NULL)
 		tapefile = def_tapefile;
 
 	/* open the tape file */
-	if ( 0 > (input_fd = open(tapefile, O_RDONLY)) )
+	if ( 0 > (input_fd = open(tapefile, openflag)) )
 		{
 		perror(tapefile);
 		exit(1);
